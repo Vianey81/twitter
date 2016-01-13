@@ -1,5 +1,8 @@
 from random import choice
 import sys
+import twitter
+import os
+
 
 
 def open_and_read_file(file_path):
@@ -27,38 +30,53 @@ def make_chains(text_string):
         {('hi', 'there'): ['mary', 'juanita'], ('there', 'mary'): ['hi'], ('mary', 'hi': ['there']}
     """
 
-# search string for first space, call it pos_1
-# set everything before first space to word_1
-# search from pos_1+1 until first space, call it pos_2
-# set everything between pos_1 and pos_2 to word_2
-#  search from pos_2+1 until first space, call it pos_3
-# set everything between pos_2 and pos_3 to word_3
-# do our thing with adding stuff to dictionary
-# make word_1 = word_2, word_2 = word_3, same for positions
-# loop from search pos_2 for next space
+   # BUILD DICTIONARY BY PARSING BIG LONG STRING OF INPUT FILE
 
+    start_pos = 0
+    end_pos = text_string.find(" ")
+    word_1 = text_string[start_pos:end_pos]
+
+    start_pos = end_pos+1
+    end_pos = text_string.find(" ", start_pos)
+    word_2 = text_string[start_pos:end_pos]
+
+    start_pos = end_pos+1
+    end_pos = text_string.find(" ", start_pos)
+    word_3 = text_string[start_pos:end_pos]
+ 
     chains = {}
-    # 
-    all_words = text_string.split()
-    n_gram_length = 2
-    for index in range(0, len(all_words)-n_gram_length):
-        n_gram = []
-        for word in range(index,index+n_gram_length):
-            n_gram.append(all_words[word])
-        n_gram = tuple(n_gram)
-        next_word = all_words[index+n_gram_length]
-        if n_gram in chains:
-            chains[n_gram].append(next_word)
+    while True:
+        bi_gram = (word_1, word_2)
+        if bi_gram in chains:
+            chains[bi_gram].append(word_3)
         else:
-            chains[n_gram] = [next_word]  
+            chains[bi_gram] = [word_3]
+        word_1 = word_2
+        word_2 = word_3
+        start_pos = end_pos+1
+        end_pos = text_string.find(" ", start_pos)
+        if end_pos != -1:
+            word_3 = text_string[start_pos:end_pos]
+        else:
+            break
+
+    # BUILD DICTIONARY USING LIST OF ALL WORDS IN INPUT FILE        
+
+    # all_words = text_string.split()
+    # n_gram_length = 2
+    # for index in range(0, len(all_words)-n_gram_length):
+    #     n_gram = []
+    #     for word in range(index,index+n_gram_length):
+    #         n_gram.append(all_words[word])
+    #     n_gram = tuple(n_gram)
+    #     next_word = all_words[index+n_gram_length]
+    #     if n_gram in chains:
+    #         chains[n_gram].append(next_word)
+    #     else:
+    #         chains[n_gram] = [next_word]  
+
     return chains
-# empty dictionary
-# get 3 words
-# put 2 words in dictionary as key and third as value
-# get new_word
-# word_1 = word_2, then word_2 = word_3, then word_3 = new_word
-# see if (word_1, word_2) in dictionary, if not add, if so append
-# go until no words left
+
 
 def make_text(chains):
     """Takes dictionary of markov chains; returns random text."""
@@ -70,26 +88,44 @@ def make_text(chains):
             all_upper_tuples.append(a_tuple)
     current_tuple = choice(all_upper_tuples)
     for word in current_tuple:
-        text += word + " "
+            text += word + " "
 
     end_punctuation = [".", "?", "!"]
-    while current_tuple in chains and current_tuple[-1][-1] not in end_punctuation:
+    while current_tuple in chains:
         rand_word = choice(chains[current_tuple])
-        text += rand_word + " "
-        #loop in current_tuple to get the words from 1 to len(current_tuple) and add rand_word
-        new_tuple = list(current_tuple)
-        new_tuple.pop(0)
-        new_tuple.append(rand_word)
-        current_tuple = tuple(new_tuple)
+        if len(text) + len(rand_word) < 140:
+            text += rand_word + " "
+            #loop in current_tuple to get the words from 1 to len(current_tuple) and add rand_word
+            if len(text) > 8 and text[-2] in end_punctuation:
+                return text   
+            new_tuple = list(current_tuple)
+            new_tuple.pop(0)
+            new_tuple.append(rand_word)
+            current_tuple = tuple(new_tuple)
 
-    return text
+        else:
+            return text
 
 
 def tweet(chains):
     # Use Python os.environ to get at environmental variables
     # Note: you must run `source secrets.sh` before running this file
     # to make sure these environmental variables are set.
-    pass
+    
+    api = twitter.Api(
+    consumer_key=os.environ['TWITTER_CONSUMER_KEY'],
+    consumer_secret=os.environ['TWITTER_CONSUMER_SECRET'],
+    access_token_key=os.environ['TWITTER_ACCESS_TOKEN_KEY'],
+    access_token_secret=os.environ['TWITTER_ACCESS_TOKEN_SECRET'])
+
+    print api.VerifyCredentials()
+
+    tweet_again = ""
+    while tweet_again.lower() != "q":
+        new_tweet = make_text(chains)
+        status = api.PostUpdate(new_tweet)
+        print status.text
+        tweet_again = raw_input("Press 'q' to Quit, or any key to tweet again. ")
 
 
 input_path = sys.argv[1]
@@ -101,6 +137,8 @@ input_text = open_and_read_file(input_path)
 chains = make_chains(input_text)
 
 # Produce random text
-random_text = make_text(chains)
+#random_text = make_text(chains)
 
-print random_text
+tweet(chains)
+
+#print random_text
