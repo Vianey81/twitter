@@ -5,6 +5,12 @@ import os
 
 
 
+def read_file_with_generator(file_path):
+    with open(file_path) as input_file:
+        for line in input_file:
+            yield line
+
+
 def open_and_read_file(file_path):
     """Takes file path as string; returns text as string.
 
@@ -16,6 +22,47 @@ def open_and_read_file(file_path):
 
     return string_file
 
+
+def make_chains_with_generator():
+    a_line_of_input = read_file_with_generator(input_path)
+    chains = {}
+
+    text_string = a_line_of_input.next()
+
+    start_pos = 0
+    end_pos = text_string.find(" ")
+    word_1 = text_string[start_pos:end_pos]
+
+    start_pos = end_pos+1
+    end_pos = text_string.find(" ", start_pos)
+    word_2 = text_string[start_pos:end_pos]
+
+    start_pos = end_pos+1
+    end_pos = text_string.find(" ", start_pos)
+    word_3 = text_string[start_pos:end_pos]
+    
+    while True:
+        try:
+            text_string = a_line_of_input.next()
+        except (StopIteration):
+            break
+        while True:
+            bi_gram = (word_1, word_2)
+            if bi_gram in chains:
+                chains[bi_gram].append(word_3)
+            else:
+                chains[bi_gram] = [word_3]
+            word_1 = word_2
+            word_2 = word_3
+            start_pos = end_pos+1
+            end_pos = text_string.find(" ", start_pos)
+            if end_pos != -1:
+                word_3 = text_string[start_pos:end_pos]
+            else:
+               break
+    return chains
+
+    
 
 def make_chains(text_string):
     """Takes input text as string; returns _dictionary_ of markov chains.
@@ -127,18 +174,27 @@ def tweet(chains):
         print status.text
         tweet_again = raw_input("Press 'q' to Quit, or any key to tweet again. ")
 
+    our_tweets = api.GetUserTimeline("vk_markov")
+    print our_tweets
+    single_tweet = api.GetStatus(687369511612186624)
+    print single_tweet
+
 
 input_path = sys.argv[1]
 
 # Open the file and turn it into one long string
-input_text = open_and_read_file(input_path)
+#input_text = open_and_read_file(input_path)
 
 # Get a Markov chain
-chains = make_chains(input_text)
+#chains = make_chains(input_text)
 
 # Produce random text
 #random_text = make_text(chains)
 
-tweet(chains)
+#tweet(chains)
 
 #print random_text
+
+
+chains = make_chains_with_generator()
+tweet(chains)
